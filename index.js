@@ -47,7 +47,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    //await client.connect();
+    await client.connect();
 
     const instructorCollection = client.db("sportsAcademy").collection("instructor");
     const classCollection = client.db("sportsAcademy").collection("class");
@@ -119,13 +119,53 @@ async function run() {
       res.send(result);
     })
 
-    // view class data by id (fileName: payment nsx)
-    app.get('/class/:id', verifyJWT, async(req, res)=>{
+    // view class data by id (fileName: payment nsx) todo verifyJWT, need to apply
+    app.get('/class/:id',  async(req, res)=>{
       const id = req.params.id;
       const query = { _id: new ObjectId(id) }
       const result = await classCollection.findOne(query);
       res.send(result);
     })
+
+    // update  status (fileName: ManageClasses jsx)
+    app.patch('/class/manage-status/:id', async(req, res)=>{
+      const id = req.params.id;
+      const filter = {_id: new ObjectId(id)};
+      const updateOne ={
+        $set:{
+          status: 'active'
+        }
+      };
+      const result = await classCollection.updateOne(filter, updateOne);
+      res.send(result);
+    })
+
+    // update  approve (fileName: ManageClasses jsx)
+    app.patch('/class/manage-approve/:id', async(req, res)=>{
+      const id = req.params.id;
+      const filter = {_id: new ObjectId(id)};
+      const updateOne ={
+        $set:{
+          approve: 'approve'
+        }
+      };
+      const result = await classCollection.updateOne(filter, updateOne);
+      res.send(result);
+    })
+
+    // update  approve (fileName: ManageClasses jsx)
+    app.patch('/class/manage-deny/:id', async(req, res)=>{
+      const id = req.params.id;
+      const filter = {_id: new ObjectId(id)};
+      const updateOne ={
+        $set:{
+          deny: 'yes'
+        }
+      };
+      const result = await classCollection.updateOne(filter, updateOne);
+      res.send(result);
+    })
+
 
 //====== update data section =========
 
@@ -136,6 +176,18 @@ async function run() {
       const updateDoc = {
         $set: {
           role: 'admin'
+        },
+      };
+      const result = await userCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    })
+    // update instructor role field (fileName: ManageUsers jsx)
+    app.patch('/users/instructor/:id', async (req, res) => {
+      const id =req.params.id;
+      const filter = {_id: new ObjectId(id)};
+      const updateDoc = {
+        $set: {
+          role: 'instructor'
         },
       };
       const result = await userCollection.updateOne(filter, updateDoc);
