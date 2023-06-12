@@ -109,14 +109,20 @@ async function run() {
 
 
 
-    // DELETE 
-    app.delete('/selected-class/:id', async (req, res) => {
-      const id = req.params.id
-      console.log('the id is',id)
-      const query= {_id: new ObjectId(id)}
-      const result= await selectedCollection.deleteOne(query);
-      // console.log('success delete',result)
-      res.send(result)
+    // DELETE selected class
+    app.delete('/selected/:id', async(req, res)=>{
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id)}
+      const result =  await selectedCollection.deleteOne(query);
+      res.send(result);
+    })
+
+    // delete user 
+    app.delete('/users/:id', async(req, res)=>{
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id)}
+      const result =  await userCollection.deleteOne(query);
+      res.send(result);
     })
 
     /// view user role
