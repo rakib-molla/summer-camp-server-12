@@ -6,24 +6,24 @@ const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY);
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 const app = express();
-const port =process.env.PORT || 5000;
+const port = process.env.PORT || 5000;
 
 // middleware
 app.use(cors());
 app.use(express.json());
 
 // === middleware ===
-function verifyJWT (req, res, next){
+function verifyJWT(req, res, next) {
   const authorization = req.headers.authorization;
   console.log(authorization);
-  if(!authorization){
-    return res.status(401).send({error: "Unauthorized Access!"});
+  if (!authorization) {
+    return res.status(401).send({ error: "Unauthorized Access!" });
   }
   // step- 2 
   const token = authorization.split(" ")[1];
-  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err,decoded)=>{
-    if(err){
-      return res.status(403).send({error: "Unauthorized Access!"});
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(403).send({ error: "Unauthorized Access!" });
     }
     req.decoded = decoded
     next();
@@ -47,11 +47,13 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
     const instructorCollection = client.db("sportsAcademy").collection("instructor");
     const classCollection = client.db("sportsAcademy").collection("class");
     const userCollection = client.db("sportsAcademy").collection("users");
+    const selectedCollection = client.db("sportsAcademy").collection("selectedClass");
+    const paymentCollection = client.db("sportsAcademy").collection("payments");
 
     // generate token jwt ====== JWT====
     app.post('/jwt', (req, res) => {
@@ -61,7 +63,7 @@ async function run() {
     })
 
     // insert user (fileName: signup jsx)
-    app.post('/users', async(req, res)=>{
+    app.post('/users', async (req, res) => {
       const user = req.body;
       const result = userCollection.insertOne(user);
       res.send(result);
@@ -69,7 +71,7 @@ async function run() {
     })
 
     // insert instructor data (fileName: AddItem jsx)
-    app.post('/instructor', async(req, res)=>{
+    app.post('/instructor', async (req, res) => {
       const instructorDetails = req.body;
       // console.log(instructorDetails);
       const result = instructorCollection.insertOne(instructorDetails);
@@ -77,24 +79,48 @@ async function run() {
     })
 
     // insert add class data  (fileName: AddClass jsx)
-    app.post('/addclass', async(req, res)=>{
+    app.post('/addclass', async (req, res) => {
       const addClassDetails = req.body;
       // console.log(addClassDetails);
       const result = classCollection.insertOne(addClassDetails);
       res.send(result);
     })
-    
+
+    // insert my selected class (fileName: PopularClassSection jsx)
+    app.post('/selected-class', async (req, res) => {
+      const data = req.body;
+      const result = selectedCollection.insertOne(data);
+      res.send(result);
+    })
 
     // ======== read/view section ========
 
     // view all instructor  data (fileName: instructor jsx) 
-    app.get('/instructor', async(req, res)=>{
+    app.get('/instructor', async (req, res) => {
       const result = await instructorCollection.find().toArray();
       res.send(result);
     })
 
+    // selected calss
+    app.get('/selected-class', async (req, res) => {
+      const result = await selectedCollection.find().toArray();
+      res.send(result)
+    })
+
+
+
+    // DELETE 
+    app.delete('/selected-class/:id', async (req, res) => {
+      const id = req.params.id
+      console.log('the id is',id)
+      const query= {_id: new ObjectId(id)}
+      const result= await selectedCollection.deleteOne(query);
+      // console.log('success delete',result)
+      res.send(result)
+    })
+
     /// view user role
-    app.get('/users/:email', async(req, res)=>{
+    app.get('/users/:email', async (req, res) => {
       const email = req.params.email;
 
       // if (req.decoded.email !== email) {
@@ -103,24 +129,24 @@ async function run() {
 
       const query = { email: email }
       const user = await userCollection.findOne(query);
-      const result = { admin: user?.role === 'admin' , user: user?.role === 'user' , instructor: user?.role === 'instructor'}
+      const result = { admin: user?.role === 'admin', user: user?.role === 'user', instructor: user?.role === 'instructor' }
       res.send(result);
     })
 
     // view all Users  data 
-    app.get('/users', async(req, res)=>{
+    app.get('/users', async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result);
     })
-    
+
     // view all class  data  (fileName: MyClasses jsx)
-    app.get('/class', async(req, res)=>{
+    app.get('/class', async (req, res) => {
       const result = await classCollection.find().toArray();
       res.send(result);
     })
 
     // view class data by id (fileName: payment nsx) todo verifyJWT, need to apply
-    app.get('/class/:id',  async(req, res)=>{
+    app.get('/class/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) }
       const result = await classCollection.findOne(query);
@@ -128,11 +154,11 @@ async function run() {
     })
 
     // update  status (fileName: ManageClasses jsx)
-    app.patch('/class/manage-status/:id', async(req, res)=>{
+    app.patch('/class/manage-status/:id', async (req, res) => {
       const id = req.params.id;
-      const filter = {_id: new ObjectId(id)};
-      const updateOne ={
-        $set:{
+      const filter = { _id: new ObjectId(id) };
+      const updateOne = {
+        $set: {
           status: 'active'
         }
       };
@@ -141,11 +167,11 @@ async function run() {
     })
 
     // update  approve (fileName: ManageClasses jsx)
-    app.patch('/class/manage-approve/:id', async(req, res)=>{
+    app.patch('/class/manage-approve/:id', async (req, res) => {
       const id = req.params.id;
-      const filter = {_id: new ObjectId(id)};
-      const updateOne ={
-        $set:{
+      const filter = { _id: new ObjectId(id) };
+      const updateOne = {
+        $set: {
           approve: 'approve'
         }
       };
@@ -154,11 +180,11 @@ async function run() {
     })
 
     // update  approve (fileName: ManageClasses jsx)
-    app.patch('/class/manage-deny/:id', async(req, res)=>{
+    app.patch('/class/manage-deny/:id', async (req, res) => {
       const id = req.params.id;
-      const filter = {_id: new ObjectId(id)};
-      const updateOne ={
-        $set:{
+      const filter = { _id: new ObjectId(id) };
+      const updateOne = {
+        $set: {
           deny: 'yes'
         }
       };
@@ -167,12 +193,12 @@ async function run() {
     })
 
 
-//====== update data section =========
+    //====== update data section =========
 
     // update admin role field (fileName: ManageUsers jsx)
     app.patch('/users/admin/:id', async (req, res) => {
-      const id =req.params.id;
-      const filter = {_id: new ObjectId(id)};
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
           role: 'admin'
@@ -183,8 +209,8 @@ async function run() {
     })
     // update instructor role field (fileName: ManageUsers jsx)
     app.patch('/users/instructor/:id', async (req, res) => {
-      const id =req.params.id;
-      const filter = {_id: new ObjectId(id)};
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
           role: 'instructor'
@@ -196,8 +222,8 @@ async function run() {
 
     // update instructor status (fileName: MyClasses jsx) 
     app.patch('/users/instructor/:id', async (req, res) => {
-      const id =req.params.id;
-      const filter = {_id: new ObjectId(id)};
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
           status: 'available'
@@ -209,11 +235,12 @@ async function run() {
 
     // ====== payment ===
 
+
     // create payment intent
     app.post('/create-payment-intent', async (req, res) => {
       const { price } = req.body;
       const amount = parseInt(price * 100);
-      console.log('price is',price);
+      console.log('price is', price);
 
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
@@ -241,10 +268,10 @@ run().catch(console.dir);
 
 
 
-app.get('/', (req, res)=>{
-    res.send('server is running');
+app.get('/', (req, res) => {
+  res.send('server is running');
 })
 
-app.listen(port, ()=>{
-    console.log(`Server is running on port ${port}`);
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 })
